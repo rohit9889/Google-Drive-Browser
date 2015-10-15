@@ -1,0 +1,289 @@
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="./bootstrap.min.css">
+    <style type="text/css">
+      #profile-image{
+        width: 50px;
+        border-radius: 24px;
+      }
+
+      #user-email{
+        padding: 0;
+      }
+    </style>
+    <script type="text/javascript" src="./jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="./bootstrap.min.js"></script>
+    <script type="text/javascript">
+      // Your Client ID can be retrieved from your project in the Google
+      // Developer Console, https://console.developers.google.com
+      var CLIENT_ID = '185356610926-amsum2o6nmmr9on95lib7kqbmj0lv7rg.apps.googleusercontent.com';
+      var USERDATA  = {}
+
+      var SCOPES = [
+        'https://www.googleapis.com/auth/drive.metadata.readonly',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/plus.me'
+      ];
+      var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+      /**
+       * Check if current user has authorized this application.
+       */
+      function checkAuth() {
+        gapi.auth.authorize(
+          {
+            'client_id': CLIENT_ID,
+            'scope': SCOPES.join(' '),
+            'immediate': true
+          }, handleAuthResult);
+      }
+
+      /**
+       * Handle response from authorization server.
+       *
+       * @param {Object} authResult Authorization result.
+       */
+      function handleAuthResult(authResult) {
+        var authorizeDiv = document.getElementById('authorize-div');
+        var resultsDiv   = document.getElementById('output');
+        var searchDiv    = document.getElementById('search-wrapper');
+        if (authResult && !authResult.error) {
+          console.log(authResult)
+          // Hide auth UI, then load client library.
+          authorizeDiv.style.display = 'none';
+          resultsDiv.setAttribute('class', '')
+          searchDiv.setAttribute('class', 'navbar-form navbar-left')
+          loadDriveApi();
+          getUserProfile()
+        } else {
+          // Show auth UI, allowing the user to initiate authorization by
+          // clicking authorize button.
+          authorizeDiv.style.display = 'inline';
+          resultsDiv.setAttribute('class', 'hidden')
+          searchDiv.setAttribute('class', 'hidden')
+        }
+      }
+
+      /**
+       * Initiate auth flow in response to user clicking authorize button.
+       *
+       * @param {Event} event Button click event.
+       */
+      function handleAuthClick(event) {
+        gapi.auth.authorize(
+          {client_id: CLIENT_ID, scope: SCOPES, immediate: false},
+          handleAuthResult);
+        return false;
+      }
+
+      /**
+       * Load Drive API client library.
+       */
+      function loadDriveApi() {
+        gapi.client.load('drive', 'v2', listFiles);
+      }
+
+      function getUserProfile(){
+        gapi.client.load('plus','v1', function(){
+          var request = gapi.client.plus.people.get({
+            'userId': 'me'
+          });
+          request.execute(function(resp) {
+            console.log('Retrieved profile for:', resp);
+            if(resp.image && resp.image.url){
+              $('#profile-image').attr('src', resp.image.url)
+            }
+          })
+        });
+      }
+
+      /**
+       * Print files.
+       */
+      function listFiles(event) {
+        if(event){
+          event.preventDefault()
+        }
+
+        removeChildElements()
+        var today = new Date()
+        var yesterday = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate(), today.getHours(), today.getMinutes()) - (24 * 3600 * 1000))
+
+        var dateString = ''
+        dateString += (yesterday.getFullYear() + "-")
+        dateString += (yesterday.getMonth() + "-")
+        dateString += (yesterday.getDate() + "T")
+        dateString += (yesterday.getHours() + ":")
+        dateString += (yesterday.getMinutes() + ":")
+        dateString += (yesterday.getSeconds())
+
+
+        var request
+
+        if(document.getElementById('search').value){
+          request = gapi.client.drive.files.list({
+            maxResults: 25,
+            q: "title contains '" + document.getElementById('search').value + "'",
+            orderBy: 'modifiedDate desc'
+          });
+        } else {
+          request = gapi.client.drive.files.list({
+            maxResults: 25,
+            orderBy: 'modifiedDate desc'
+          });
+        }
+
+          request.execute(function(resp) {
+            var files = resp.items;
+            if (files && files.length > 0) {
+              for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                appendPre(
+                  file.title,
+                  file.alternateLink,
+                  new Date(file.modifiedDate),
+                  file.originalFilename,
+                  file.parents[0]
+                )
+              }
+            } else {
+              appendPre('No files found.');
+            }
+          });
+      }
+
+      /**
+       * Append a pre element to the body containing the given message
+       * as its text node.
+       *
+       * @param {string} message Text to be placed in pre element.
+       */
+      function appendPre(title, link, modifiedAt, originalFilename, parent) {
+        var pre = document.getElementById('output-table').childNodes[3];
+        var tr  = document.createElement('tr')
+        var td1 = document.createElement('td')
+        var td2 = document.createElement('td')
+        var td3 = document.createElement('td')
+        var td4 = document.createElement('td')
+        var td5 = document.createElement('td')
+
+        td1.appendChild(document.createTextNode(title || ''))
+        
+        var anchor  = document.createElement('a')
+        anchor.href = link
+        anchor.target = "_blank"
+        anchor.appendChild(document.createTextNode('Link'))
+        td2.appendChild(anchor)
+
+        var modifiedAtString = ""
+        modifiedAtString += (modifiedAt.getHours() + ':')
+        modifiedAtString += (modifiedAt.getMinutes() + ' ')
+        modifiedAtString += (modifiedAt.getDate() + '-')
+        modifiedAtString += (MONTHS[modifiedAt.getMonth()] + '-')
+        modifiedAtString += (modifiedAt.getFullYear())
+        td3.appendChild(document.createTextNode(modifiedAtString || ''))
+        td4.appendChild(document.createTextNode(originalFilename || ''))
+
+        if(parent){
+          var parentLink = 'https://drive.google.com/drive/u/0/folders/' + parent.id
+          anchor  = document.createElement('a')
+          anchor.href   = parentLink
+          anchor.target = "_blank"
+          anchor.appendChild(document.createTextNode('Go To Folder'))
+          td5.appendChild(anchor)
+        } else {
+          td5.appendChild(document.createTextNode('No Parent'))
+        }
+
+        tr.appendChild(td1);
+        // tr.appendChild(td4);
+        tr.appendChild(td3);
+        tr.appendChild(td2);
+        tr.appendChild(td5);
+
+        pre.appendChild(tr);
+      }
+
+      function removeChildElements(){
+        var list     = document.getElementById("output-table")
+        var tbody    = list.childNodes[3]
+        var toRemove = tbody.childNodes
+        var length   = toRemove.length
+
+        if(length > 1){
+          for(var i = 0; i < length; i++){
+            tbody.removeChild(tbody.childNodes[0])
+          }
+        }
+      }
+
+    </script>
+    <script src="https://apis.google.com/js/client.js?onload=checkAuth">
+    </script>
+  </head>
+  <body>
+    <nav class="navbar navbar-default">
+      <div class="container-fluid">
+        <!-- Brand and toggle get grouped for better mobile display -->
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">Google Drive Browser</a>
+        </div>
+
+        <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+          <form class="navbar-form navbar-left" id="search-wrapper" role="search">
+            <div class="form-group">
+              <input type="text" class="form-control" placeholder="Search Files By Name" id="search" />
+            </div>
+            <button type="submit" class="btn btn-primary" onclick="listFiles(event)">Search</button>
+          </form>
+
+          <ul class="nav navbar-nav navbar-right">
+            <li class="dropdown">
+              <a href="#" id="user-email" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                <img src="./default.png" id="profile-image"></span>
+              </a>
+              <ul class="dropdown-menu">
+                <li><a href="#" onclick="handleAuthClick(event)">Authorize using other account</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div><!-- /.container-fluid -->
+    </nav>
+    <div class="container">
+      <div class="row">
+        <div class="col-md-12">
+          <div id="authorize-div" style="display: none">
+            <button class="btn btn-danger" id="authorize-button" onclick="handleAuthClick(event)">
+              Authorize access to Drive API
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-12">
+          <div class="hidden" id="output">
+            <table id="output-table" class="table">
+              <thead>
+                <tr>
+                  <th>FileName</th>
+                  <th>Modified At</th>
+                  <th>Link</th>
+                  <th>Link To Folder</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
