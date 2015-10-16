@@ -49,7 +49,7 @@
         var resultsDiv   = document.getElementById('output');
         var searchDiv    = document.getElementById('search-wrapper');
         if (authResult && !authResult.error) {
-          console.log(authResult)
+
           // Hide auth UI, then load client library.
           authorizeDiv.style.display = 'none';
           resultsDiv.setAttribute('class', '')
@@ -90,7 +90,6 @@
             'userId': 'me'
           });
           request.execute(function(resp) {
-            console.log('Retrieved profile for:', resp);
             if(resp.image && resp.image.url){
               $('#profile-image').attr('src', resp.image.url)
             }
@@ -286,5 +285,17 @@
         </div>
       </div>
     </div>
+
+    <script>
+      if(location.host != "localhost"){
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+        ga('create', 'UA-20113038-3', 'auto');
+        ga('send', 'pageview');
+      }
+    </script>
   </body>
 </html>
